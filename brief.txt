@@ -1,0 +1,39 @@
+1. The "Personal Dashboard" Widgets (Notion/Obsidian)
+Productivity nerds love embedding things. Since you have no database, your "widgets" are the only ones that will never go down or lose data due to a server migration.
+
+The Progress Bar: ?type=progress&start=09:00&end=17:00&label=Work+Day
+
+Visual: A sleek, auto-updating loading bar showing how much of their workday or year is left.
+
+The "Focus" Timer: ?type=timer&mins=25&mode=pomodoro
+
+Visual: A minimalist countdown that people can embed right next to their to-do list.
+
+2. The "Quick-Share" Utilities
+Things you want to send someone via DM without making them download a file or log in.
+
+The WiFi Joiner: ?type=wifi&s=GuestNet&p=Password123
+
+Visual: A beautiful, printable card with a QR code. People scan it; they’re on the WiFi. No more repeating the password 10 times.
+
+The "Price Tag" Generator: ?type=sell&item=Old+Bike&price=$50&contact=12345
+
+Visual: A clean, high-contrast "For Sale" sign. Perfect for people selling things on FB Marketplace who want to print a quick, professional flyer.
+
+3. The "Interaction" Bypasses
+Tools that solve annoying "steps" in digital life.
+
+The "WhatsApp-Me" Link: ?type=wa&num=123456789&msg=Hey+I+want+to+buy+the+bike
+
+Visual: A "Click to Chat" button. It solves the "I don't want to save this person's contact just to send one message" problem.
+
+The "Checklist" Handover: ?type=todo&items=Milk,Eggs,Bread,Coffee
+
+Visual: An interactive checklist. You send the link to your spouse; they check items off in their browser.
+
+The Wonder: When they check an item, the JS updates the URL replaceState, so if they refresh, the "checked" state is still there!
+
+4. The "Professional" Quick-Tools
+The "Instant Portfolio" Card: ?name=Alex&bio=Dev&links=gh:alex,tw:alex
+
+Visual: A digital business card. It’s "Zero Asset" hosting for your identity.
