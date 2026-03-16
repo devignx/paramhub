@@ -1,4 +1,4 @@
- 'use client';
+'use client';
 
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState, Suspense } from 'react';
@@ -300,6 +300,39 @@ function QrContent() {
               <code className="font-mono">/qr?d=...&amp;size=...&amp;lvl=...&amp;fg=...&amp;bg=...&amp;fmt=svg|png&amp;out=image|json&amp;margin=1</code>
             </span>
           </p>
+        </div>
+      </CreatorCard>
+      <div className='mt-12 block' />
+
+      <CreatorCard title="Bookmarklet Note" description="Generate QR codes quickly from anywhere.">
+        <div className="space-y-4 text-sm text-muted-foreground">
+          <p>
+            You can use this bookmarklet to quickly generate a QR code from any page. Just drag the button below to your bookmarks bar, and click it whenever you need to convert some text.
+          </p>
+          <div className="p-4 bg-muted rounded-lg flex items-center justify-between border border-border">
+            <a
+              href={`javascript: const txt = prompt("Enter Text: ");url="https://paramhub.vercel.app/api/qr?d="+txt+"&size=256&lvl=M&fg=%23020617&bg=%23ffffff&fmt=svg";window.open(url, '_blank').focus();`}
+              className="px-3 py-1.5 bg-primary text-primary-foreground text-xs font-medium rounded-md hover:bg-primary/90 cursor-grab transform active:scale-95 transition-all shadow-sm"
+              onClick={(e) => e.preventDefault()}
+            >
+              QR Gen ⚡️
+            </a>
+            <span className="text-xs font-medium">Drag this to your bookmarks</span>
+          </div>
+          <div className="space-y-2">
+            <p className="font-medium text-foreground">Steps to use:</p>
+            <ol className="list-decimal list-inside space-y-1">
+              <li>Show your browser&apos;s Bookmarks Bar (<kbd className="bg-background border border-border rounded px-1.5 py-0.5 font-sans">Ctrl+Shift+B</kbd> or <kbd className="bg-background border border-border rounded px-1.5 py-0.5 font-sans">Cmd+Shift+B</kbd>).</li>
+              <li>Drag the <strong>QR Gen ⚡️</strong> button above and drop it onto your bookmarks bar.</li>
+              <li>Whenever you want to generate a QR code, click the bookmarklet!</li>
+            </ol>
+          </div>
+          <div className="mt-4 pt-4 border-t border-border">
+            <p className="mb-2 text-xs">Or copy the code manually:</p>
+            <pre className="bg-background p-3 rounded border border-border text-xs overflow-x-auto select-all">
+              {`javascript: const txt = prompt("Enter Text: ");url="https://paramhub.vercel.app/api/qr?d="+txt+"&size=256&lvl=M&fg=%23020617&bg=%23ffffff&fmt=svg";window.open(url, '_blank').focus();`}
+            </pre>
+          </div>
         </div>
       </CreatorCard>
     </CreatorContainer>
