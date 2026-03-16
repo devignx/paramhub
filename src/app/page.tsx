@@ -19,6 +19,7 @@ import {
   FileText,
   CircleDot,
   ArrowRight,
+  QrCode,
 } from 'lucide-react';
 
 const categories = [
@@ -51,6 +52,12 @@ const categories = [
         description: 'QR code for instant WiFi sharing',
         href: '/wifi',
         icon: Wifi,
+      },
+      {
+        name: 'QR Generator',
+        description: 'Customizable QR codes from URL params',
+        href: '/qr',
+        icon: QrCode,
       },
       {
         name: 'Price Tag',
