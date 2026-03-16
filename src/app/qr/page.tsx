@@ -148,12 +148,12 @@ function QrContent() {
       fg: config.fg,
       bg: config.bg,
       fmt: config.format,
-      out: config.output,
     });
     if (config.includeMargin) {
       params.set('margin', '1');
     }
-    return `${window.location.origin}/qr?${params.toString()}`;
+    // Always point copied URL at the API image endpoint for seamless Postman / programmatic use
+    return `${window.location.origin}/api/qr?${params.toString()}`;
   };
 
   const isValid = config.data.trim().length > 0;
@@ -290,8 +290,15 @@ function QrContent() {
 
           <ActionButtons generateUrl={generateUrl} disabled={!isValid} />
 
-          <p className="text-xs text-muted-foreground mt-2">
-            URL schema: <code className="font-mono">/qr?d=...&amp;size=...&amp;lvl=...&amp;fg=...&amp;bg=...&amp;fmt=svg|png&amp;out=image|json&amp;margin=1</code>
+          <p className="text-xs text-muted-foreground mt-2 space-y-1">
+            <span className="block">
+              Copied link / preview target:{' '}
+              <code className="font-mono">/api/qr?d=...&amp;size=...&amp;lvl=...&amp;fg=...&amp;bg=...&amp;fmt=svg|png&amp;margin=1</code>
+            </span>
+            <span className="block">
+              For page view instead, open:{' '}
+              <code className="font-mono">/qr?d=...&amp;size=...&amp;lvl=...&amp;fg=...&amp;bg=...&amp;fmt=svg|png&amp;out=image|json&amp;margin=1</code>
+            </span>
           </p>
         </div>
       </CreatorCard>
