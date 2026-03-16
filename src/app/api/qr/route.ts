@@ -68,7 +68,7 @@ export async function GET(req: NextRequest) {
       width: size,
     });
 
-    return new Response(buffer, {
+    return new Response(new Uint8Array(buffer), {
       status: 200,
       headers: {
         'Content-Type': 'image/png',
