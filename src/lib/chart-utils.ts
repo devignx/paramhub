@@ -1,3 +1,5 @@
+import { pack, unpack } from '@/lib/url-utils';
+
 export interface ChartPoint {
   label: string;
   value: number;
@@ -5,6 +7,19 @@ export interface ChartPoint {
 
 export type ChartType = 'bar' | 'line' | 'area';
 export type ChartTheme = 'aurora' | 'sunset' | 'mint' | 'mono';
+export type ChartAsset = 'svg' | 'page';
+
+export interface ChartRenderConfig {
+  title: string;
+  subtitle: string;
+  chart: ChartType;
+  theme: ChartTheme;
+  metric: string;
+  goal: string;
+  showLabels: boolean;
+  showValues: boolean;
+  data: ChartPoint[];
+}
 
 export interface ChartStats {
   total: number;
@@ -14,9 +29,8 @@ export interface ChartStats {
 }
 
 export interface EncodedChartData {
-  strategy: 'data' | 'labels-values' | 'hash';
+  strategy: 'data' | 'labels-values' | 'payload';
   queryParams: Record<string, string>;
-  hashData?: { data: ChartPoint[] };
 }
 
 const MAX_INLINE_DATA_LENGTH = 220;
@@ -96,6 +110,17 @@ export function parseLabelsAndValues(
   );
 }
 
+export function parsePayloadData(payloadValue: string | null): ChartPoint[] {
+  if (!payloadValue) return [];
+
+  const payload = unpack<{ data?: ChartPoint[] }>(payloadValue);
+  if (!payload?.data || payload.data.length === 0) {
+    return [];
+  }
+
+  return sanitizeChartPoints(payload.data);
+}
+
 export function encodeChartDataForUrl(points: ChartPoint[]): EncodedChartData {
   const cleanPoints = sanitizeChartPoints(points);
   if (cleanPoints.length === 0) {
@@ -143,12 +168,9 @@ export function encodeChartDataForUrl(points: ChartPoint[]): EncodedChartData {
   }
 
   return {
-    strategy: 'hash',
+    strategy: 'payload',
     queryParams: {
-      points: String(cleanPoints.length),
-    },
-    hashData: {
-      data: cleanPoints,
+      payload: pack({ data: cleanPoints }),
     },
   };
 }

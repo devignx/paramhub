@@ -15,50 +15,21 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { ChartSvg, THEME_STYLES, ThemeStyle } from '@/components/chart/chart-svg';
 import {
   calculateChartStats,
+  ChartAsset,
   ChartPoint,
+  ChartRenderConfig,
   ChartTheme,
   ChartType,
-  clampNumber,
   encodeChartDataForUrl,
   formatMetricValue,
   parseChartDataParam,
   parseLabelsAndValues,
+  parsePayloadData,
   sanitizeChartPoints,
 } from '@/lib/chart-utils';
-import { generateShareableUrl, unpack } from '@/lib/url-utils';
-
-interface ChartConfig {
-  title: string;
-  subtitle: string;
-  chart: ChartType;
-  theme: ChartTheme;
-  metric: string;
-  goal: string;
-  showLabels: boolean;
-  showValues: boolean;
-  data: ChartPoint[];
-}
-
-interface HashPayload {
-  data?: ChartPoint[];
-}
-
-interface ThemeStyle {
-  background: string;
-  panel: string;
-  card: string;
-  text: string;
-  subtext: string;
-  muted: string;
-  gradientStart: string;
-  gradientEnd: string;
-  solid: string;
-  fill: string;
-  grid: string;
-  goal: string;
-}
 
 const DEFAULT_POINTS: ChartPoint[] = [
   { label: 'Mon', value: 28 },
@@ -69,7 +40,7 @@ const DEFAULT_POINTS: ChartPoint[] = [
   { label: 'Sat', value: 44 },
 ];
 
-const DEFAULT_CONFIG: ChartConfig = {
+const DEFAULT_CONFIG: ChartRenderConfig = {
   title: 'Weekly Momentum',
   subtitle: 'Animated SVG charts powered entirely by your URL.',
   chart: 'bar',
@@ -79,69 +50,6 @@ const DEFAULT_CONFIG: ChartConfig = {
   showLabels: true,
   showValues: true,
   data: DEFAULT_POINTS,
-};
-
-const THEME_STYLES: Record<ChartTheme, ThemeStyle> = {
-  aurora: {
-    background:
-      'radial-gradient(circle at top left, #1d4ed8 0%, #0f172a 42%, #020617 100%)',
-    panel: 'border-white/10 bg-white/10 backdrop-blur-xl',
-    card: 'border-white/10 bg-white/5',
-    text: 'text-white',
-    subtext: 'text-slate-300',
-    muted: 'text-slate-400',
-    gradientStart: '#8b5cf6',
-    gradientEnd: '#22d3ee',
-    solid: '#38bdf8',
-    fill: 'rgba(56, 189, 248, 0.16)',
-    grid: 'rgba(255,255,255,0.12)',
-    goal: '#fbbf24',
-  },
-  sunset: {
-    background:
-      'radial-gradient(circle at top right, #7c2d12 0%, #2a0f1c 45%, #12070e 100%)',
-    panel: 'border-white/10 bg-white/10 backdrop-blur-xl',
-    card: 'border-white/10 bg-white/5',
-    text: 'text-white',
-    subtext: 'text-rose-100/90',
-    muted: 'text-rose-100/60',
-    gradientStart: '#fb7185',
-    gradientEnd: '#f59e0b',
-    solid: '#fb7185',
-    fill: 'rgba(251, 113, 133, 0.18)',
-    grid: 'rgba(255,255,255,0.1)',
-    goal: '#fde68a',
-  },
-  mint: {
-    background:
-      'radial-gradient(circle at top center, #14532d 0%, #052e16 30%, #022c22 100%)',
-    panel: 'border-emerald-200/15 bg-emerald-50/10 backdrop-blur-xl',
-    card: 'border-emerald-200/10 bg-emerald-50/5',
-    text: 'text-emerald-50',
-    subtext: 'text-emerald-100/80',
-    muted: 'text-emerald-100/60',
-    gradientStart: '#34d399',
-    gradientEnd: '#2dd4bf',
-    solid: '#34d399',
-    fill: 'rgba(52, 211, 153, 0.18)',
-    grid: 'rgba(167,243,208,0.12)',
-    goal: '#facc15',
-  },
-  mono: {
-    background:
-      'radial-gradient(circle at top left, #262626 0%, #111111 45%, #050505 100%)',
-    panel: 'border-white/10 bg-white/5 backdrop-blur-xl',
-    card: 'border-white/10 bg-white/[0.03]',
-    text: 'text-zinc-50',
-    subtext: 'text-zinc-300',
-    muted: 'text-zinc-500',
-    gradientStart: '#f4f4f5',
-    gradientEnd: '#71717a',
-    solid: '#fafafa',
-    fill: 'rgba(255,255,255,0.12)',
-    grid: 'rgba(255,255,255,0.12)',
-    goal: '#f59e0b',
-  },
 };
 
 function pointsToTextarea(points: ChartPoint[]): string {
@@ -186,273 +94,22 @@ function parseBooleanParam(value: string | null, fallback: boolean): boolean {
   return value !== '0' && value !== 'false';
 }
 
-function parseGoalValue(value: string): number | null {
-  const trimmedValue = value.trim();
-  if (!trimmedValue) return null;
-
-  const numericValue = Number(trimmedValue);
-  if (Number.isNaN(numericValue) || numericValue < 0) return null;
-
-  return numericValue;
-}
-
-function buildLinePath(points: Array<{ x: number; y: number }>): string {
-  if (points.length === 0) return '';
-  if (points.length === 1) return `M ${points[0].x} ${points[0].y}`;
-
-  let path = `M ${points[0].x} ${points[0].y}`;
-
-  for (let index = 0; index < points.length - 1; index += 1) {
-    const current = points[index];
-    const next = points[index + 1];
-    const midpoint = (current.x + next.x) / 2;
-    path += ` C ${midpoint} ${current.y}, ${midpoint} ${next.y}, ${next.x} ${next.y}`;
-  }
-
-  return path;
-}
-
-function ChartSvg({
-  config,
-  theme,
-  animate,
-}: {
-  config: ChartConfig;
-  theme: ThemeStyle;
-  animate: boolean;
-}) {
-  const width = 720;
-  const height = 360;
-  const paddingLeft = 58;
-  const paddingRight = 24;
-  const paddingTop = 28;
-  const paddingBottom = 58;
-  const chartWidth = width - paddingLeft - paddingRight;
-  const chartHeight = height - paddingTop - paddingBottom;
-  const goalValue = parseGoalValue(config.goal);
-  const maxInputValue = Math.max(
-    ...config.data.map((point) => point.value),
-    goalValue ?? 0,
-    1,
-  );
-  const maxValue = maxInputValue * 1.1;
-  const ticks = Array.from({ length: 5 }, (_, index) => {
-    const ratio = index / 4;
-    const value = maxValue * (1 - ratio);
-    const y = paddingTop + chartHeight * ratio;
-    return { value, y };
+function buildChartUrl(pathname: string, config: ChartRenderConfig): string {
+  const encodedData = encodeChartDataForUrl(config.data);
+  const params = new URLSearchParams({
+    chart: config.chart,
+    title: config.title,
+    theme: config.theme,
+    ...encodedData.queryParams,
   });
 
-  const points = config.data.map((point, index) => {
-    const x =
-      config.data.length === 1
-        ? paddingLeft + chartWidth / 2
-        : paddingLeft + (chartWidth / (config.data.length - 1)) * index;
-    const y =
-      paddingTop +
-      chartHeight -
-      (point.value / maxValue) * chartHeight;
+  if (config.subtitle.trim()) params.set('subtitle', config.subtitle.trim());
+  if (config.metric.trim()) params.set('metric', config.metric.trim());
+  if (config.goal.trim()) params.set('goal', config.goal.trim());
+  if (!config.showLabels) params.set('showLabels', '0');
+  if (!config.showValues) params.set('showValues', '0');
 
-    return {
-      ...point,
-      x,
-      y,
-    };
-  });
-
-  const linePath = buildLinePath(points);
-  const areaPath =
-    points.length > 0
-      ? `${linePath} L ${points[points.length - 1].x} ${paddingTop + chartHeight} L ${points[0].x} ${paddingTop + chartHeight} Z`
-      : '';
-
-  const goalY =
-    goalValue === null
-      ? null
-      : paddingTop + chartHeight - (goalValue / maxValue) * chartHeight;
-
-  const barSlotWidth = chartWidth / Math.max(config.data.length, 1);
-  const barWidth = clampNumber(barSlotWidth * 0.58, 26, 64);
-
-  return (
-    <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto overflow-visible">
-      <defs>
-        <linearGradient id="chart-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor={theme.gradientStart} />
-          <stop offset="100%" stopColor={theme.gradientEnd} />
-        </linearGradient>
-        <linearGradient id="area-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stopColor={theme.gradientStart} stopOpacity="0.42" />
-          <stop offset="100%" stopColor={theme.gradientEnd} stopOpacity="0" />
-        </linearGradient>
-      </defs>
-
-      {ticks.map((tick) => (
-        <g key={tick.y}>
-          <line
-            x1={paddingLeft}
-            x2={width - paddingRight}
-            y1={tick.y}
-            y2={tick.y}
-            stroke={theme.grid}
-            strokeDasharray="4 6"
-          />
-          <text
-            x={paddingLeft - 12}
-            y={tick.y + 4}
-            textAnchor="end"
-            fontSize="11"
-            fill={theme.gradientEnd}
-            opacity="0.72"
-          >
-            {formatMetricValue(tick.value, config.metric)}
-          </text>
-        </g>
-      ))}
-
-      {goalY !== null && (
-        <g>
-          <line
-            x1={paddingLeft}
-            x2={width - paddingRight}
-            y1={goalY}
-            y2={goalY}
-            stroke={theme.goal}
-            strokeDasharray="10 8"
-            strokeWidth="2"
-            opacity="0.9"
-          />
-          <text
-            x={width - paddingRight}
-            y={goalY - 8}
-            textAnchor="end"
-            fontSize="11"
-            fill={theme.goal}
-          >
-            Goal {formatMetricValue(goalValue ?? 0, config.metric)}
-          </text>
-        </g>
-      )}
-
-      {config.chart === 'bar' &&
-        points.map((point, index) => {
-          const barHeight = (point.value / maxValue) * chartHeight;
-          const x = paddingLeft + barSlotWidth * index + (barSlotWidth - barWidth) / 2;
-          const y = paddingTop + chartHeight - barHeight;
-
-          return (
-            <g key={point.label}>
-              <rect
-                x={x}
-                y={animate ? y : paddingTop + chartHeight}
-                width={barWidth}
-                height={animate ? barHeight : 0}
-                rx="14"
-                fill="url(#chart-gradient)"
-                opacity="0.96"
-                style={{
-                  transition:
-                    `y 700ms cubic-bezier(0.22, 1, 0.36, 1) ${index * 70}ms, ` +
-                    `height 700ms cubic-bezier(0.22, 1, 0.36, 1) ${index * 70}ms`,
-                }}
-              />
-              {config.showValues && (
-                <text
-                  x={x + barWidth / 2}
-                  y={y - 10}
-                  textAnchor="middle"
-                  fontSize="12"
-                  fill={theme.gradientEnd}
-                  style={{
-                    opacity: animate ? 1 : 0,
-                    transition: `opacity 450ms ease ${200 + index * 70}ms`,
-                  }}
-                >
-                  {formatMetricValue(point.value, config.metric)}
-                </text>
-              )}
-            </g>
-          );
-        })}
-
-      {config.chart === 'area' && areaPath && (
-        <path
-          d={areaPath}
-          fill="url(#area-gradient)"
-          opacity={animate ? 1 : 0}
-          style={{
-            transition: 'opacity 900ms ease 180ms',
-          }}
-        />
-      )}
-
-      {(config.chart === 'line' || config.chart === 'area') && linePath && (
-        <path
-          d={linePath}
-          fill="none"
-          stroke="url(#chart-gradient)"
-          strokeWidth="5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          pathLength={100}
-          strokeDasharray="100"
-          strokeDashoffset={animate ? 0 : 100}
-          style={{
-            transition: 'stroke-dashoffset 1200ms cubic-bezier(0.22, 1, 0.36, 1)',
-          }}
-        />
-      )}
-
-      {(config.chart === 'line' || config.chart === 'area') &&
-        points.map((point, index) => (
-          <g key={point.label}>
-            <circle
-              cx={point.x}
-              cy={animate ? point.y : paddingTop + chartHeight}
-              r={animate ? 5.5 : 0}
-              fill={theme.solid}
-              stroke="rgba(255,255,255,0.85)"
-              strokeWidth="2"
-              style={{
-                transition:
-                  `cy 650ms cubic-bezier(0.22, 1, 0.36, 1) ${120 + index * 70}ms, ` +
-                  `r 500ms ease ${120 + index * 70}ms`,
-              }}
-            />
-            {config.showValues && (
-              <text
-                x={point.x}
-                y={point.y - 16}
-                textAnchor="middle"
-                fontSize="12"
-                fill={theme.gradientEnd}
-                style={{
-                  opacity: animate ? 1 : 0,
-                  transition: `opacity 400ms ease ${260 + index * 70}ms`,
-                }}
-              >
-                {formatMetricValue(point.value, config.metric)}
-              </text>
-            )}
-          </g>
-        ))}
-
-      {config.showLabels &&
-        points.map((point) => (
-          <text
-            key={point.label}
-            x={point.x}
-            y={height - 18}
-            textAnchor="middle"
-            fontSize="12"
-            fill={theme.gradientEnd}
-            opacity="0.9"
-          >
-            {point.label}
-          </text>
-        ))}
-    </svg>
-  );
+  return `${window.location.origin}${pathname}?${params.toString()}`;
 }
 
 function InsightCard({
@@ -472,22 +129,16 @@ function InsightCard({
   );
 }
 
-function ChartView({ config }: { config: ChartConfig }) {
-  const [animate, setAnimate] = useState(false);
+function ChartView({ config }: { config: ChartRenderConfig }) {
   const theme = THEME_STYLES[config.theme];
   const stats = useMemo(() => calculateChartStats(config.data), [config.data]);
 
-  useEffect(() => {
-    setAnimate(false);
-    const frame = window.requestAnimationFrame(() => {
-      setAnimate(true);
-    });
-
-    return () => window.cancelAnimationFrame(frame);
-  }, [config.chart, config.data, config.goal, config.metric, config.theme]);
-
   return (
-    <ViewContainer createHref="/chart" className="flex items-center justify-center px-4 py-10" style={{ backgroundImage: theme.background }}>
+    <ViewContainer
+      createHref="/chart"
+      className="flex items-center justify-center px-4 py-10"
+      style={{ backgroundImage: theme.background }}
+    >
       <div className={`w-full max-w-6xl rounded-[32px] border p-6 shadow-2xl md:p-8 ${theme.panel}`}>
         <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
@@ -540,7 +191,7 @@ function ChartView({ config }: { config: ChartConfig }) {
           </div>
 
           <div className={`rounded-[28px] border p-4 md:p-6 ${theme.card}`}>
-            <ChartSvg config={config} theme={theme} animate={animate} />
+            <ChartSvg config={config} theme={theme} animateMode="page" className="w-full h-auto overflow-visible" />
           </div>
 
           <div className="flex flex-wrap gap-3">
@@ -564,45 +215,48 @@ function ChartView({ config }: { config: ChartConfig }) {
 function ChartContent() {
   const searchParams = useSearchParams();
   const [isCreating, setIsCreating] = useState(true);
-  const [config, setConfig] = useState<ChartConfig>(DEFAULT_CONFIG);
+  const [config, setConfig] = useState<ChartRenderConfig>(DEFAULT_CONFIG);
   const [dataInput, setDataInput] = useState(pointsToTextarea(DEFAULT_CONFIG.data));
+  const [asset, setAsset] = useState<ChartAsset>('svg');
 
   useEffect(() => {
-    const hashValue = typeof window !== 'undefined' ? window.location.hash : '';
-    const hashData = hashValue ? unpack<HashPayload>(hashValue.slice(1)) : null;
     const inlineData = parseChartDataParam(searchParams.get('data'));
     const splitData = parseLabelsAndValues(
       searchParams.get('labels'),
       searchParams.get('values'),
     );
-    const paramData = inlineData.length > 0 ? inlineData : splitData;
+    const payloadData = parsePayloadData(searchParams.get('payload'));
     const resolvedData =
-      hashData?.data && hashData.data.length > 0 ? sanitizeChartPoints(hashData.data) : paramData;
+      inlineData.length > 0
+        ? inlineData
+        : splitData.length > 0
+          ? splitData
+          : payloadData;
 
-    const hasUrlConfig =
-      hashValue.length > 1 ||
-      Array.from(searchParams.keys()).length > 0;
+    const hasUrlConfig = Array.from(searchParams.keys()).length > 0;
 
     if (!hasUrlConfig) {
       setIsCreating(true);
       setConfig(DEFAULT_CONFIG);
       setDataInput(pointsToTextarea(DEFAULT_CONFIG.data));
+      setAsset('svg');
       return;
     }
 
-    setIsCreating(false);
-    const nextConfig: ChartConfig = {
+    const chartParam = searchParams.get('chart');
+    const themeParam = searchParams.get('theme');
+    const assetParam = searchParams.get('asset');
+
+    const nextConfig: ChartRenderConfig = {
       title: searchParams.get('title') || 'URL Chart',
       subtitle: searchParams.get('subtitle') || '',
       chart:
-        searchParams.get('chart') === 'line' || searchParams.get('chart') === 'area'
-          ? (searchParams.get('chart') as ChartType)
+        chartParam === 'line' || chartParam === 'area'
+          ? (chartParam as ChartType)
           : 'bar',
       theme:
-        searchParams.get('theme') === 'sunset' ||
-        searchParams.get('theme') === 'mint' ||
-        searchParams.get('theme') === 'mono'
-          ? (searchParams.get('theme') as ChartTheme)
+        themeParam === 'sunset' || themeParam === 'mint' || themeParam === 'mono'
+          ? (themeParam as ChartTheme)
           : 'aurora',
       metric: searchParams.get('metric') || '',
       goal: searchParams.get('goal') || '',
@@ -611,8 +265,10 @@ function ChartContent() {
       data: resolvedData.length > 0 ? resolvedData : DEFAULT_CONFIG.data,
     };
 
+    setIsCreating(false);
     setConfig(nextConfig);
     setDataInput(pointsToTextarea(nextConfig.data));
+    setAsset(assetParam === 'page' ? 'page' : 'svg');
   }, [searchParams]);
 
   const dataPoints = useMemo(() => textareaToPoints(dataInput), [dataInput]);
@@ -632,48 +288,24 @@ function ChartContent() {
     },
     'labels-values': {
       title: 'Split `labels=` + `values=` params',
-      body: 'Best for scripts and automation. It is easy to generate from spreadsheets, shell scripts, or no-code tools.',
+      body: 'Best for scripts and automation. It maps cleanly from spreadsheets, forms, and CMS fields.',
     },
-    hash: {
-      title: 'Compressed hash payload',
-      body: 'Best for bigger datasets or labels with reserved separators. The URL stays shareable without dropping fidelity.',
+    payload: {
+      title: 'Compressed `payload=` param',
+      body: 'Best for larger datasets and raw SVG asset URLs, because the server can resolve it without relying on hash fragments.',
     },
   } as const;
 
   const generateUrl = () => {
-    const queryParams: Record<string, string> = {
-      chart: config.chart,
-      title: config.title,
-      theme: config.theme,
-      ...encodedData.queryParams,
+    const nextConfig = {
+      ...config,
+      data: dataPoints,
     };
 
-    if (config.subtitle.trim()) {
-      queryParams.subtitle = config.subtitle.trim();
-    }
-
-    if (config.metric.trim()) {
-      queryParams.metric = config.metric.trim();
-    }
-
-    if (config.goal.trim()) {
-      queryParams.goal = config.goal.trim();
-    }
-
-    if (!config.showLabels) {
-      queryParams.showLabels = '0';
-    }
-
-    if (!config.showValues) {
-      queryParams.showValues = '0';
-    }
-
-    return generateShareableUrl('/chart', queryParams, encodedData.hashData);
+    return asset === 'svg'
+      ? buildChartUrl('/api/chart', nextConfig)
+      : buildChartUrl('/chart', nextConfig);
   };
-
-  if (!isCreating) {
-    return <ChartView config={config} />;
-  }
 
   const previewTheme = THEME_STYLES[config.theme];
   const isValid = dataPoints.length >= 2 && config.title.trim().length > 0;
@@ -687,9 +319,20 @@ function ChartContent() {
 
       <CreatorCard
         title="Create Chart"
-        description="Define your chart once, then share it as a self-contained link."
+        description="Choose whether the shared output should be a raw SVG asset or an HTML page that wraps the SVG."
       >
         <div className="space-y-6">
+          <OptionGrid<ChartAsset>
+            label="Output Asset"
+            options={[
+              { value: 'svg', label: 'SVG File' },
+              { value: 'page', label: 'HTML Page' },
+            ]}
+            value={asset}
+            onChange={setAsset}
+            columns={2}
+          />
+
           <TextInput
             label="Chart Title"
             value={config.title}
@@ -801,7 +444,12 @@ function ChartContent() {
               className="rounded-[28px] border p-5 md:p-6"
               style={{ backgroundImage: previewTheme.background }}
             >
-              <ChartSvg config={previewConfig} theme={previewTheme} animate />
+              <ChartSvg
+                config={previewConfig}
+                theme={previewTheme}
+                animateMode="page"
+                className="w-full h-auto overflow-visible"
+              />
             </div>
           )}
 
@@ -816,10 +464,10 @@ function ChartContent() {
             <p className="text-sm font-medium">Param ideas that get the most out of charts</p>
             <div className="mt-3 space-y-2 text-sm text-muted-foreground">
               <p>
-                Use `data=` when the link is meant to be hand-edited in docs, Notion, or chat threads.
+                Choose `SVG File` when another website, CMS, or MDX page needs a direct asset URL.
               </p>
               <p>
-                Use `labels=` and `values=` when another tool is assembling the URL from structured fields.
+                Choose `HTML Page` when you want the richer ParamHub presentation with stats and the surrounding layout.
               </p>
               <p>
                 Add `metric=` and `goal=` to turn raw numbers into something interpretable at a glance.
