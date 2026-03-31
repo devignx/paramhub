@@ -33,6 +33,7 @@ export async function GET(request: NextRequest) {
     terminal: '⌨️',
     invoice: '📄',
     decision: '🎡',
+    chart: '📈',
     default: '⚡',
   };
 

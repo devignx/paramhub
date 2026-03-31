@@ -20,6 +20,7 @@ import {
   CircleDot,
   ArrowRight,
   QrCode,
+  BarChart3,
 } from 'lucide-react';
 
 const categories = [
@@ -39,6 +40,13 @@ const categories = [
         description: 'Pomodoro-style countdown timer',
         href: '/timer',
         icon: Timer,
+        badge: 'New',
+      },
+      {
+        name: 'SVG Charts',
+        description: 'Animated charts driven by URL params',
+        href: '/chart',
+        icon: BarChart3,
         badge: 'New',
       },
     ],
